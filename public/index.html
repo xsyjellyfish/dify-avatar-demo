@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>内分泌科主任训练 Demo</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      height: 100vh;
+      gap: 16px;
+      padding: 16px;
+    }
+
+    .left,
+    .right {
+      background: #111827;
+      border-radius: 18px;
+      padding: 16px;
+      overflow: hidden;
+    }
+
+    h2 {
+      margin-top: 0;
+      font-size: 20px;
+    }
+
+    .avatar-box {
+      height: calc(100vh - 90px);
+      border-radius: 16px;
+      background: #020617;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid #1f2937;
+    }
+
+    .avatar-frame {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: #000;
+    }
+
+    .avatar-status-pill {
+      position: absolute;
+      left: 14px;
+      bottom: 14px;
+      z-index: 5;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(2, 6, 23, 0.78);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      color: #cbd5e1;
+      font-size: 13px;
+      backdrop-filter: blur(10px);
+      max-width: calc(100% - 28px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .chat-log {
+      height: calc(100vh - 220px);
+      overflow-y: auto;
+      background: #020617;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .msg {
+      margin-bottom: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .user {
+      color: #93c5fd;
+    }
+
+    .bot {
+      color: #bbf7d0;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    input {
+      flex: 1;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      background: #020617;
+      color: white;
+      outline: none;
+    }
+
+    button {
+      padding: 12px 16px;
+      border: none;
+      border-radius: 10px;
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: #475569;
+    }
+
+    button.danger {
+      background: #dc2626;
+    }
+
+    button.report {
+      background: #f97316;
+      white-space: nowrap;
+    }
+
+    .report-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.78);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 24px;
+    }
+
+    .report-modal[hidden] {
+      display: none;
+    }
+
+    .report-card {
+      width: min(1000px, 96vw);
+      height: min(780px, 92vh);
+      background: #111827;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+    }
+
+    .report-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid #334155;
+    }
+
+    .report-header h3 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .report-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    #reportFrame {
+      flex: 1;
+      width: 100%;
+      border: 0;
+      background: white;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 10px;
+      color: #94a3b8;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="left">
+      <h2>内分泌科主任</h2>
+      <div class="avatar-box" id="avatarBox">
+        <iframe
+          id="doctorFrame"
+          class="avatar-frame"
+          title="医生语音播报"
+          src="/webrtc_player.html?compact=1&name=%E5%86%85%E5%88%86%E6%B3%8C%E7%A7%91%E4%B8%BB%E4%BB%BB&desc=%E7%82%B9%E5%87%BB%E5%96%87%E5%8F%AD%E6%92%AD%E6%8A%A5%E5%BD%93%E5%89%8D%20AI%20%E5%9B%9E%E5%A4%8D"
+          allow="autoplay; microphone"
+        ></iframe>
+        <div class="avatar-status-pill" id="avatarStatusPill">医生播报页面已加载</div>
+      </div>
+    </div>
+
+    <div class="right">
+      <h2>训练对话</h2>
+
+      <div class="chat-log" id="chatLog"></div>
+
+      <div class="input-row">
+        <input id="userInput" placeholder="例如：开始模拟多格列艾汀拜访" />
+        <button id="sendBtn">发送</button>
+        <button id="micBtn" class="secondary">语音</button>
+        <button id="stopBtn" class="danger">打断</button>
+        <button id="finishBtn" class="report">结束并生成报告</button>
+      </div>
+
+      <div class="status" id="status">准备就绪</div>
+    </div>
+  </div>
+
+  <div class="report-modal" id="reportModal" hidden>
+    <div class="report-card">
+      <div class="report-header">
+        <h3>训练测试报告</h3>
+        <div class="report-actions">
+          <button id="printReportBtn" class="secondary">打印 / 保存为 PDF</button>
+          <button id="closeReportBtn" class="danger">关闭</button>
+        </div>
+      </div>
+      <iframe id="reportFrame" title="训练测试报告"></iframe>
+    </div>
+  </div>
+
+  <script>
+    let conversationId = "";
+    let recognition = null;
+
+    // 本次训练的完整对话记录，会在点击“结束并生成报告”时传给后端。
+    const messages = [];
+    const startTime = new Date().toISOString();
+
+    // 这里先写死，后续可以改成登录用户信息或页面输入框。
+    const traineeName = "测试代表";
+    const scenarioName = "内分泌科主任糖尿病药物拜访";
+    const doctorRole = "严谨型内分泌科主任";
+
+    const chatLog = document.getElementById("chatLog");
+    const input = document.getElementById("userInput");
+    const statusEl = document.getElementById("status");
+    const finishBtn = document.getElementById("finishBtn");
+    const sendBtn = document.getElementById("sendBtn");
+    const reportModal = document.getElementById("reportModal");
+    const reportFrame = document.getElementById("reportFrame");
+    const doctorFrame = document.getElementById("doctorFrame");
+    const avatarStatusPill = document.getElementById("avatarStatusPill");
+
+    function appendMessage(role, text, shouldRecord = true) {
+      const div = document.createElement("div");
+      div.className = `msg ${role}`;
+      div.textContent = (role === "user" ? "我：\n" : "主任：\n") + text;
+      chatLog.appendChild(div);
+      chatLog.scrollTop = chatLog.scrollHeight;
+
+      if (shouldRecord) {
+        messages.push({
+          role: role === "user" ? "representative" : "doctor",
+          speaker: role === "user" ? "医药代表" : "内分泌科主任",
+          content: text,
+          time: new Date().toISOString(),
+        });
+      }
+    }
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function setAvatarStatus(text) {
+      avatarStatusPill.textContent = text;
+    }
+
+    function sendTextToDoctorFrame(text, autoSpeak = false) {
+      if (!doctorFrame || !doctorFrame.contentWindow) return;
+
+      doctorFrame.contentWindow.postMessage({
+        type: autoSpeak ? "speak" : "setText",
+        text,
+      }, "*");
+
+      setAvatarStatus(autoSpeak ? "医生正在自动播报..." : "已收到回复，点击左侧喇叭可播报");
+    }
+
+    function stopDoctorSpeak() {
+      if (!doctorFrame || !doctorFrame.contentWindow) return;
+
+      doctorFrame.contentWindow.postMessage({
+        type: "stopSpeak",
+      }, "*");
+
+      setStatus("已停止播报");
+      setAvatarStatus("已停止播报");
+    }
+
+    async function sendMessage() {
+      const message = input.value.trim();
+      if (!message) return;
+
+      input.value = "";
+      appendMessage("user", message);
+      setStatus("正在请求 Dify...");
+      sendBtn.disabled = true;
+
+      try {
+        const resp = await fetch("/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message,
+            conversation_id: conversationId,
+            user: "demo-user",
+          }),
+        });
+
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          appendMessage("bot", "请求失败：\n" + JSON.stringify(data, null, 2), false);
+          setStatus("请求失败");
+          return;
+        }
+
+        conversationId = data.conversation_id || conversationId;
+
+        const speakText = data.speak_text || data.answer || "没有收到回复。";
+        const displayText = data.display_text || speakText;
+
+        appendMessage("bot", displayText);
+
+        // 把 Dify 回复传给左侧医生页面。
+        // 现在默认不自动播报，需要用户点击左侧喇叭。
+        sendTextToDoctorFrame(speakText, false);
+
+        setStatus("完成，点击左侧喇叭可播报");
+      } catch (err) {
+        appendMessage("bot", "错误：" + err.message, false);
+        setStatus("错误");
+      } finally {
+        sendBtn.disabled = false;
+      }
+    }
+
+    function calculateDuration(start, end) {
+      const diffMs = new Date(end) - new Date(start);
+      const minutes = Math.floor(diffMs / 60000);
+      const seconds = Math.floor((diffMs % 60000) / 1000);
+      return `${minutes}分${seconds}秒`;
+    }
+
+    function showReportHtml(reportHtml) {
+      reportModal.hidden = false;
+
+      const doc = reportFrame.contentWindow.document;
+      doc.open();
+      doc.write(reportHtml);
+      doc.close();
+    }
+
+    async function finishTraining() {
+      if (messages.length === 0) {
+        alert("还没有对话记录，无法生成报告。请先完成一次训练对话。");
+        return;
+      }
+
+      const endTime = new Date().toISOString();
+
+      finishBtn.disabled = true;
+      setStatus("正在生成测试报告...");
+
+      try {
+        const resp = await fetch("/api/training/finish", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            trainee_name: traineeName,
+            scenario_name: scenarioName,
+            doctor_role: doctorRole,
+            dialogue_log: messages,
+            start_time: startTime,
+            end_time: endTime,
+            duration: calculateDuration(startTime, endTime),
+          }),
+        });
+
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          appendMessage("bot", "报告生成失败：\n" + JSON.stringify(data, null, 2), false);
+          setStatus("报告生成失败");
+          return;
+        }
+
+        const pdfUrl = data.pdf_url || data.data?.outputs?.pdf_url || data.outputs?.pdf_url;
+        const reportHtml =
+          data.report_html ||
+          data.data?.outputs?.report_html ||
+          data.outputs?.report_html;
+
+        if (pdfUrl) {
+          window.open(pdfUrl, "_blank");
+          setStatus("报告已生成，已打开下载链接");
+          return;
+        }
+
+        if (reportHtml) {
+          showReportHtml(reportHtml);
+          setStatus("报告已生成");
+          return;
+        }
+
+        appendMessage("bot", "报告接口已返回，但没有找到 report_html 或 pdf_url：\n" + JSON.stringify(data, null, 2), false);
+        setStatus("报告返回格式异常");
+      } catch (err) {
+        appendMessage("bot", "报告生成错误：" + err.message, false);
+        setStatus("报告生成错误");
+      } finally {
+        finishBtn.disabled = false;
+      }
+    }
+
+    function initMic() {
+      const SpeechRecognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (!SpeechRecognition) {
+        document.getElementById("micBtn").disabled = true;
+        document.getElementById("micBtn").textContent = "不支持语音";
+        return;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.lang = "zh-CN";
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        setStatus("正在听你说话...");
+      };
+
+      recognition.onerror = (event) => {
+        setStatus("语音识别错误：" + event.error);
+      };
+
+      recognition.onresult = (event) => {
+        const text = event.results[0][0].transcript;
+        input.value = text;
+        sendMessage();
+      };
+
+      recognition.onend = () => {
+        setStatus("语音识别结束");
+      };
+    }
+
+    document.getElementById("sendBtn").onclick = sendMessage;
+    document.getElementById("finishBtn").onclick = finishTraining;
+
+    document.getElementById("closeReportBtn").onclick = () => {
+      reportModal.hidden = true;
+    };
+
+    document.getElementById("printReportBtn").onclick = () => {
+      reportFrame.contentWindow.focus();
+      reportFrame.contentWindow.print();
+    };
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        sendMessage();
+      }
+    });
+
+    document.getElementById("micBtn").onclick = () => {
+      if (recognition) recognition.start();
+    };
+
+    document.getElementById("stopBtn").onclick = stopDoctorSpeak;
+
+    doctorFrame.addEventListener("load", () => {
+      setAvatarStatus("医生播报页面已加载");
+    });
+
+    initMic();
+  </script>
+</body>
+</html>

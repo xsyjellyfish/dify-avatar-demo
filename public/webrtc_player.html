@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>医生语音播报</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #eef5ff 0%, #f8fbff 52%, #ffffff 100%);
+      color: #172033;
+    }
+
+    #doctor-container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+    }
+
+    .doctor-card {
+      width: min(92vw, 520px);
+      height: min(92vh, 760px);
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(125, 160, 210, 0.24);
+      box-shadow: 0 18px 50px rgba(20, 55, 110, 0.16);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 24px;
+      gap: 18px;
+    }
+
+    .photo-wrap {
+      width: min(72vw, 360px);
+      aspect-ratio: 3 / 4;
+      border-radius: 26px;
+      overflow: hidden;
+      background: #e7eef8;
+      box-shadow: 0 14px 38px rgba(25, 55, 95, 0.18);
+      position: relative;
+    }
+
+    #doctorPhoto {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    .photo-placeholder {
+      width: 100%;
+      height: 100%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 12px;
+      color: #5b6f91;
+      font-weight: 700;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .photo-placeholder .icon {
+      font-size: 72px;
+      line-height: 1;
+    }
+
+    .doctor-name {
+      margin: 6px 0 0;
+      font-size: 22px;
+      font-weight: 800;
+      color: #14213d;
+      letter-spacing: 0.02em;
+    }
+
+    .doctor-desc {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #52637c;
+      text-align: center;
+    }
+
+    .speak-area {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    #speakBtn {
+      width: min(78vw, 300px);
+      border: none;
+      border-radius: 999px;
+      padding: 14px 22px;
+      color: #fff;
+      background: #2563eb;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 17px;
+      box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
+      transition: transform 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    #speakBtn:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgba(37, 99, 235, 0.34);
+    }
+
+    #speakBtn:active {
+      transform: translateY(0);
+      box-shadow: 0 7px 18px rgba(37, 99, 235, 0.24);
+    }
+
+    #speakBtn.speaking {
+      background: #16a34a;
+    }
+
+    .mini-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .mini-btn {
+      border: none;
+      border-radius: 999px;
+      padding: 8px 13px;
+      cursor: pointer;
+      color: #32415c;
+      background: #e9f0fb;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .mini-btn:hover {
+      background: #dce8fa;
+    }
+
+    .status {
+      min-height: 20px;
+      font-size: 13px;
+      color: #64748b;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .text-preview {
+      width: 100%;
+      max-width: 420px;
+      max-height: 112px;
+      overflow: auto;
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: #f3f7fd;
+      border: 1px solid #e1eaf7;
+      color: #40516c;
+      font-size: 13px;
+      line-height: 1.65;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    .text-preview.empty {
+      color: #8a9ab1;
+      text-align: center;
+    }
+
+    body.compact .doctor-card {
+      width: 100vw;
+      height: 100vh;
+      border-radius: 0;
+      box-shadow: none;
+      border: none;
+    }
+
+    body.compact #doctor-container {
+      padding: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="doctor-container">
+    <div class="doctor-card">
+      <div class="photo-wrap">
+        <img id="doctorPhoto" src="./doctor.png" alt="医生照片" />
+        <div id="photoPlaceholder" class="photo-placeholder">
+          <div class="icon">👩‍⚕️</div>
+          <div>请把医生照片命名为 doctor.png<br />放到当前 HTML 同级目录</div>
+        </div>
+      </div>
+
+      <h1 id="doctorName" class="doctor-name">内分泌科主任</h1>
+      <p id="doctorDesc" class="doctor-desc">点击下方喇叭，即可播报当前 AI 回复内容</p>
+
+      <div class="speak-area">
+        <button id="speakBtn" type="button">🔊 语音播报</button>
+
+        <div class="mini-actions">
+          <button id="pauseBtn" class="mini-btn" type="button">暂停</button>
+          <button id="resumeBtn" class="mini-btn" type="button">继续</button>
+          <button id="stopBtn" class="mini-btn" type="button">停止</button>
+        </div>
+
+        <div id="status" class="status">等待回答内容...</div>
+        <div id="textPreview" class="text-preview empty">暂无可播报内容</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+
+    // 支持通过 URL 自定义：
+    // doctor_speaker.html?img=doctor.png&name=内分泌科主任&text=你好&autoSpeak=1&compact=1
+    const imageUrl = params.get("img") || "./doctor.png";
+    const doctorName = params.get("name") || "内分泌科主任";
+    const doctorDesc = params.get("desc") || "点击下方喇叭，即可播报当前 AI 回复内容";
+    const compact = params.get("compact") === "1";
+    const autoSpeak = params.get("autoSpeak") === "1";
+
+    let latestText = params.get("text") || "";
+
+    const photo = document.getElementById("doctorPhoto");
+    const placeholder = document.getElementById("photoPlaceholder");
+    const nameEl = document.getElementById("doctorName");
+    const descEl = document.getElementById("doctorDesc");
+    const speakBtn = document.getElementById("speakBtn");
+    const pauseBtn = document.getElementById("pauseBtn");
+    const resumeBtn = document.getElementById("resumeBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const statusEl = document.getElementById("status");
+    const previewEl = document.getElementById("textPreview");
+
+    if (compact) {
+      document.body.classList.add("compact");
+    }
+
+    photo.src = imageUrl;
+    nameEl.textContent = doctorName;
+    descEl.textContent = doctorDesc;
+
+    photo.addEventListener("error", () => {
+      photo.style.display = "none";
+      placeholder.style.display = "flex";
+    });
+
+    function normalizeText(text) {
+      return String(text || "")
+        .replace(/<[^>]*>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function setDoctorText(text) {
+      latestText = normalizeText(text);
+
+      if (!latestText) {
+        previewEl.textContent = "暂无可播报内容";
+        previewEl.classList.add("empty");
+        setStatus("等待回答内容...");
+        return;
+      }
+
+      previewEl.textContent = latestText;
+      previewEl.classList.remove("empty");
+      setStatus("已收到回答，点击喇叭可播报");
+    }
+
+    function getChineseVoice() {
+      const voices = window.speechSynthesis.getVoices() || [];
+
+      return (
+        voices.find((voice) => voice.lang === "zh-CN") ||
+        voices.find((voice) => voice.lang && voice.lang.toLowerCase().startsWith("zh")) ||
+        null
+      );
+    }
+
+    function speakText(text) {
+      const cleanText = normalizeText(text || latestText);
+
+      if (!cleanText) {
+        setStatus("当前还没有可以播报的内容");
+        return;
+      }
+
+      if (!("speechSynthesis" in window)) {
+        setStatus("当前浏览器不支持语音播报，请换 Chrome / Edge");
+        return;
+      }
+
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      const voice = getChineseVoice();
+
+      utterance.lang = "zh-CN";
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+
+      if (voice) {
+        utterance.voice = voice;
+      }
+
+      utterance.onstart = () => {
+        speakBtn.classList.add("speaking");
+        speakBtn.textContent = "🔊 正在播报...";
+        setStatus("正在播报");
+      };
+
+      utterance.onend = () => {
+        speakBtn.classList.remove("speaking");
+        speakBtn.textContent = "🔊 语音播报";
+        setStatus("播报完成");
+      };
+
+      utterance.onerror = () => {
+        speakBtn.classList.remove("speaking");
+        speakBtn.textContent = "🔊 语音播报";
+        setStatus("播报失败，请再点一次或换浏览器");
+      };
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function pauseSpeak() {
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.pause();
+        setStatus("已暂停");
+      }
+    }
+
+    function resumeSpeak() {
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.resume();
+        setStatus("继续播报");
+      }
+    }
+
+    function stopSpeak() {
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+        speakBtn.classList.remove("speaking");
+        speakBtn.textContent = "🔊 语音播报";
+        setStatus(latestText ? "已停止，可重新播报" : "等待回答内容...");
+      }
+    }
+
+    // 给父页面调用：
+    // iframe.contentWindow.setDoctorText("新的回答")
+    // iframe.contentWindow.speakDoctorText("新的回答")
+    window.setDoctorText = setDoctorText;
+    window.speakDoctorText = function (text) {
+      if (typeof text === "string") {
+        setDoctorText(text);
+      }
+      speakText(latestText);
+    };
+    window.stopDoctorSpeak = stopSpeak;
+
+    // 给 iframe 场景使用 postMessage：
+    // iframe.contentWindow.postMessage({ type: "setText", text: answerText }, "*")
+    // iframe.contentWindow.postMessage({ type: "speak", text: answerText }, "*")
+    window.addEventListener("message", (event) => {
+      const data = event.data || {};
+
+      if (typeof data === "string") {
+        setDoctorText(data);
+        return;
+      }
+
+      if (data.type === "setText") {
+        setDoctorText(data.text || data.answer || data.message || "");
+      }
+
+      if (data.type === "speak") {
+        setDoctorText(data.text || data.answer || data.message || latestText);
+        speakText(latestText);
+      }
+
+      if (data.type === "stopSpeak") {
+        stopSpeak();
+      }
+    });
+
+    speakBtn.addEventListener("click", () => speakText(latestText));
+    pauseBtn.addEventListener("click", pauseSpeak);
+    resumeBtn.addEventListener("click", resumeSpeak);
+    stopBtn.addEventListener("click", stopSpeak);
+
+    // 某些浏览器需要先加载语音列表
+    window.speechSynthesis?.getVoices?.();
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.getVoices();
+    };
+
+    setDoctorText(latestText);
+
+    if (autoSpeak && latestText) {
+      setTimeout(() => speakText(latestText), 600);
+    }
+  </script>
+</body>
+</html>
